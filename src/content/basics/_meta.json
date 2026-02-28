@@ -1,0 +1,6 @@
+{
+  "select": "SELECT 기본",
+  "filtering": "조건 필터링",
+  "sorting": "정렬과 페이징",
+  "aggregates": "집계 함수"
+}

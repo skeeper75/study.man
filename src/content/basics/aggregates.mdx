@@ -1,0 +1,155 @@
+---
+title: "집계 함수"
+description: "COUNT, SUM, AVG, MIN, MAX와 GROUP BY를 사용하여 데이터를 요약하는 방법을 배웁니다."
+difficulty: "beginner"
+tags: ["postgresql", "sql", "aggregate", "group-by"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/sorting", "intermediate/window-functions"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 집계 함수
+
+집계 함수는 여러 행의 데이터를 하나의 결과로 요약합니다.
+
+## 기본 집계 함수
+
+| 함수 | 설명 |
+|------|------|
+| `COUNT(*)` | 행 개수 |
+| `COUNT(column)` | NULL이 아닌 값의 개수 |
+| `SUM(column)` | 합계 |
+| `AVG(column)` | 평균 |
+| `MIN(column)` | 최솟값 |
+| `MAX(column)` | 최댓값 |
+
+```sql
+SELECT
+  COUNT(*) AS total_count,
+  SUM(salary) AS total_salary,
+  AVG(salary) AS avg_salary,
+  MIN(salary) AS min_salary,
+  MAX(salary) AS max_salary
+FROM employees;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  department TEXT,
+  salary INTEGER
+);
+
+INSERT INTO employees (name, department, salary) VALUES
+  ('김철수', '개발팀', 6000),
+  ('이영희', '개발팀', 4000),
+  ('박민수', '디자인팀', 5500),
+  ('정수진', '개발팀', 6500),
+  ('한지민', '기획팀', 5000),
+  ('최동욱', '디자인팀', 4500),
+  ('윤서연', '기획팀', 4800);
+
+SELECT
+  COUNT(*) AS total_count,
+  ROUND(AVG(salary)) AS avg_salary,
+  MIN(salary) AS min_salary,
+  MAX(salary) AS max_salary
+FROM employees;`}
+  title="기본 집계 함수"
+/>
+
+## GROUP BY - 그룹별 집계
+
+```sql
+SELECT
+  department,
+  COUNT(*) AS member_count,
+  ROUND(AVG(salary)) AS avg_salary
+FROM employees
+GROUP BY department;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  department TEXT,
+  salary INTEGER
+);
+
+INSERT INTO employees (name, department, salary) VALUES
+  ('김철수', '개발팀', 6000),
+  ('이영희', '개발팀', 4000),
+  ('박민수', '디자인팀', 5500),
+  ('정수진', '개발팀', 6500),
+  ('한지민', '기획팀', 5000),
+  ('최동욱', '디자인팀', 4500),
+  ('윤서연', '기획팀', 4800);
+
+SELECT
+  department,
+  COUNT(*) AS member_count,
+  ROUND(AVG(salary)) AS avg_salary,
+  SUM(salary) AS total_salary
+FROM employees
+GROUP BY department
+ORDER BY avg_salary DESC;`}
+  title="GROUP BY 예제"
+/>
+
+## HAVING - 그룹 필터링
+
+`WHERE`는 그룹화 전에, `HAVING`은 그룹화 후에 필터링합니다:
+
+```sql
+SELECT
+  department,
+  COUNT(*) AS member_count,
+  AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department
+HAVING COUNT(*) >= 2;
+```
+
+<Callout type="info">
+`WHERE`와 `HAVING`의 차이:
+- `WHERE`: 개별 행을 필터링 (GROUP BY 전)
+- `HAVING`: 그룹을 필터링 (GROUP BY 후)
+</Callout>
+
+## COUNT의 변형
+
+```sql
+-- 모든 행 수
+SELECT COUNT(*) FROM employees;
+
+-- NULL이 아닌 값의 수
+SELECT COUNT(phone) FROM employees;
+
+-- 고유 값의 수
+SELECT COUNT(DISTINCT department) FROM employees;
+```
+
+## SQL 실행 순서
+
+```
+1. FROM     ← 테이블 선택
+2. WHERE    ← 행 필터링
+3. GROUP BY ← 그룹화
+4. HAVING   ← 그룹 필터링
+5. SELECT   ← 컬럼 선택 및 연산
+6. ORDER BY ← 정렬
+7. LIMIT    ← 결과 제한
+```
+
+<Callout type="tip">
+SELECT에서 정의한 별칭은 WHERE에서 사용할 수 없지만, ORDER BY에서는 사용할 수 있습니다. 이는 SQL의 실행 순서 때문입니다.
+</Callout>
+
+## 다음 단계
+
+집계 함수와 GROUP BY를 배웠습니다. 다음 섹션에서는 테이블을 설계하고 관계를 정의하는 데이터 모델링을 배웁니다.

@@ -1,0 +1,114 @@
+---
+title: "정렬과 페이징"
+description: "ORDER BY, LIMIT, OFFSET을 사용하여 결과를 정렬하고 페이징하는 방법을 배웁니다."
+difficulty: "beginner"
+tags: ["postgresql", "sql", "order-by", "limit", "offset"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/filtering", "basics/aggregates"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 정렬과 페이징
+
+`ORDER BY`로 결과를 정렬하고, `LIMIT`과 `OFFSET`으로 원하는 범위의 데이터만 가져올 수 있습니다.
+
+## ORDER BY - 정렬
+
+```sql
+-- 오름차순 (기본값)
+SELECT * FROM products ORDER BY price ASC;
+
+-- 내림차순
+SELECT * FROM products ORDER BY price DESC;
+
+-- 여러 컬럼으로 정렬
+SELECT * FROM products
+ORDER BY category ASC, price DESC;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT,
+  price INTEGER
+);
+
+INSERT INTO products (name, category, price) VALUES
+  ('노트북', '전자제품', 1200000),
+  ('키보드', '전자제품', 89000),
+  ('마우스', '전자제품', 35000),
+  ('커피', '음료', 4500),
+  ('주스', '음료', 3000),
+  ('모니터', '전자제품', 350000);
+
+SELECT * FROM products
+ORDER BY category ASC, price DESC;`}
+  title="다중 컬럼 정렬"
+/>
+
+## NULLS FIRST / NULLS LAST
+
+NULL 값의 정렬 위치를 지정할 수 있습니다:
+
+```sql
+-- NULL을 마지막에 배치 (기본값: ASC에서는 LAST)
+SELECT * FROM products ORDER BY stock NULLS LAST;
+
+-- NULL을 처음에 배치
+SELECT * FROM products ORDER BY stock DESC NULLS FIRST;
+```
+
+## LIMIT - 결과 개수 제한
+
+```sql
+-- 상위 3개만 조회
+SELECT * FROM products
+ORDER BY price DESC
+LIMIT 3;
+```
+
+## OFFSET - 건너뛰기
+
+```sql
+-- 2개를 건너뛰고 3개 조회
+SELECT * FROM products
+ORDER BY price DESC
+LIMIT 3 OFFSET 2;
+```
+
+## 페이지네이션 패턴
+
+```sql
+-- 페이지 크기: 10, 페이지 번호: 3
+SELECT * FROM products
+ORDER BY id
+LIMIT 10 OFFSET 20;  -- (page - 1) * page_size
+```
+
+<Callout type="warning">
+OFFSET 기반 페이지네이션은 대용량 데이터에서 느려집니다. OFFSET이 클수록 건너뛰어야 할 행이 많아지기 때문입니다. 대안으로 커서 기반 페이지네이션을 사용하세요. [실전: 페이지네이션](/practical/pagination)에서 자세히 다룹니다.
+</Callout>
+
+## FETCH FIRST (SQL 표준)
+
+`LIMIT`은 PostgreSQL/MySQL에서 지원하는 비표준 문법입니다. SQL 표준 문법은 다음과 같습니다:
+
+```sql
+SELECT * FROM products
+ORDER BY price DESC
+FETCH FIRST 5 ROWS ONLY;
+
+-- OFFSET과 함께
+SELECT * FROM products
+ORDER BY price DESC
+OFFSET 10 ROWS
+FETCH FIRST 5 ROWS ONLY;
+```
+
+## 다음 단계
+
+정렬과 페이징을 배웠습니다. 다음 레슨에서는 집계 함수를 사용하여 데이터를 요약하는 방법을 배웁니다.

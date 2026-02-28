@@ -1,0 +1,121 @@
+---
+title: "JOIN 심화"
+description: "INNER, LEFT, RIGHT, FULL OUTER, CROSS JOIN과 자기 조인(Self Join)을 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "sql", "join"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["data-modeling/relationships", "intermediate/subqueries"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# JOIN 심화
+
+JOIN의 모든 유형과 실무 활용 패턴을 배웁니다.
+
+## JOIN 유형 비교
+
+```
+INNER JOIN  ─  양쪽 모두 일치하는 행만
+LEFT JOIN   ─  왼쪽 전체 + 오른쪽 일치
+RIGHT JOIN  ─  오른쪽 전체 + 왼쪽 일치
+FULL JOIN   ─  양쪽 전체 (일치 + 불일치)
+CROSS JOIN  ─  모든 조합 (카테시안 곱)
+```
+
+## FULL OUTER JOIN
+
+양쪽 테이블의 모든 행을 반환합니다:
+
+```sql
+SELECT
+  e.name AS employee,
+  d.name AS department
+FROM employees e
+FULL OUTER JOIN departments d ON e.department_id = d.id;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE departments (id SERIAL PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE employees (id SERIAL PRIMARY KEY, name TEXT NOT NULL, department_id INTEGER);
+
+INSERT INTO departments (name) VALUES ('개발팀'), ('디자인팀'), ('인사팀');
+INSERT INTO employees (name, department_id) VALUES
+  ('김철수', 1), ('이영희', 1), ('박민수', 2), ('정수진', NULL);
+
+-- FULL OUTER JOIN: 모든 직원 + 모든 부서
+SELECT e.name AS employee, d.name AS department
+FROM employees e
+FULL OUTER JOIN departments d ON e.department_id = d.id;`}
+  title="FULL OUTER JOIN"
+/>
+
+## Self JOIN - 자기 조인
+
+같은 테이블을 자기 자신과 조인합니다:
+
+```sql
+-- 상사-부하 관계 조회
+SELECT
+  e.name AS employee,
+  m.name AS manager
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.id;
+```
+
+## 다중 JOIN
+
+```sql
+SELECT
+  o.id AS order_id,
+  c.name AS customer,
+  p.name AS product,
+  oi.quantity
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id;
+```
+
+## USING 절
+
+조인 컬럼 이름이 같으면 `USING`을 사용할 수 있습니다:
+
+```sql
+-- ON 대신 USING
+SELECT * FROM orders
+JOIN customers USING (customer_id);
+```
+
+## NATURAL JOIN
+
+<Callout type="warning">
+`NATURAL JOIN`은 같은 이름의 모든 컬럼으로 자동 조인합니다. 스키마 변경 시 의도치 않은 동작이 발생할 수 있으므로 사용을 피하세요.
+</Callout>
+
+## LATERAL JOIN
+
+서브쿼리에서 외부 테이블의 컬럼을 참조할 수 있습니다:
+
+```sql
+-- 각 부서별 최고 연봉 직원 2명
+SELECT d.name, top_emp.*
+FROM departments d
+CROSS JOIN LATERAL (
+  SELECT e.name, e.salary
+  FROM employees e
+  WHERE e.department_id = d.id
+  ORDER BY e.salary DESC
+  LIMIT 2
+) AS top_emp;
+```
+
+<Callout type="tip">
+`LATERAL`은 상관 서브쿼리의 한계를 극복합니다. "각 행마다 서브쿼리를 실행"하는 패턴에서 유용합니다.
+</Callout>
+
+## 다음 단계
+
+JOIN 심화를 배웠습니다. 다음 레슨에서는 서브쿼리와 CTE를 배웁니다.

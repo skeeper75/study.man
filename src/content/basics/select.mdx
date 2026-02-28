@@ -1,0 +1,157 @@
+---
+title: "SELECT 기본"
+description: "SELECT 문의 기본 구조와 다양한 사용법을 배웁니다."
+difficulty: "beginner"
+tags: ["postgresql", "sql", "select"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/filtering", "basics/sorting"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# SELECT 기본
+
+`SELECT`는 SQL에서 가장 많이 사용하는 명령입니다. 데이터를 조회하고 변환하는 모든 작업의 시작점입니다.
+
+## SELECT 문의 구조
+
+```sql
+SELECT 컬럼1, 컬럼2, ...
+FROM 테이블명;
+```
+
+## 모든 컬럼 조회
+
+```sql
+SELECT * FROM employees;
+```
+
+<Callout type="warning">
+`SELECT *`는 모든 컬럼을 가져옵니다. 개발 중에는 편리하지만, 프로덕션 코드에서는 필요한 컬럼만 명시하세요. 불필요한 데이터 전송을 줄이고, 스키마 변경에 안전합니다.
+</Callout>
+
+## 특정 컬럼 조회
+
+```sql
+SELECT name, department, salary
+FROM employees;
+```
+
+## 컬럼 별칭 (Alias)
+
+```sql
+SELECT
+  name AS employee_name,
+  salary * 12 AS annual_salary
+FROM employees;
+```
+
+## DISTINCT - 중복 제거
+
+```sql
+-- 중복 없이 부서 목록 조회
+SELECT DISTINCT department
+FROM employees;
+
+-- 여러 컬럼 조합의 중복 제거
+SELECT DISTINCT department, position
+FROM employees;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  department TEXT,
+  position TEXT,
+  salary INTEGER
+);
+
+INSERT INTO employees (name, department, position, salary) VALUES
+  ('김철수', '개발팀', '시니어', 6000),
+  ('이영희', '개발팀', '주니어', 4000),
+  ('박민수', '디자인팀', '시니어', 5500),
+  ('정수진', '개발팀', '시니어', 6500),
+  ('한지민', '기획팀', '매니저', 5000);
+
+SELECT DISTINCT department FROM employees;`}
+  title="DISTINCT 예제"
+/>
+
+## 연산과 표현식
+
+SELECT에서 산술 연산과 함수를 사용할 수 있습니다:
+
+```sql
+SELECT
+  name,
+  salary,
+  salary * 12 AS annual_salary,
+  salary * 12 * 0.1 AS annual_tax,
+  UPPER(department) AS dept_upper,
+  LENGTH(name) AS name_length
+FROM employees;
+```
+
+## CASE 표현식
+
+조건에 따라 다른 값을 반환합니다:
+
+```sql
+SELECT
+  name,
+  salary,
+  CASE
+    WHEN salary >= 6000 THEN '고연봉'
+    WHEN salary >= 5000 THEN '중간'
+    ELSE '저연봉'
+  END AS salary_grade
+FROM employees;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  department TEXT,
+  salary INTEGER
+);
+
+INSERT INTO employees (name, department, salary) VALUES
+  ('김철수', '개발팀', 6000),
+  ('이영희', '개발팀', 4000),
+  ('박민수', '디자인팀', 5500),
+  ('정수진', '개발팀', 6500),
+  ('한지민', '기획팀', 5000);
+
+SELECT name, salary,
+  CASE
+    WHEN salary >= 6000 THEN '고연봉'
+    WHEN salary >= 5000 THEN '중간'
+    ELSE '저연봉'
+  END AS salary_grade
+FROM employees;`}
+  title="CASE 표현식"
+/>
+
+## NULL 처리
+
+```sql
+-- COALESCE: 첫 번째 NULL이 아닌 값 반환
+SELECT COALESCE(phone, email, '연락처 없음') AS contact
+FROM users;
+
+-- NULLIF: 두 값이 같으면 NULL 반환
+SELECT NULLIF(discount, 0) AS effective_discount
+FROM products;
+```
+
+<Callout type="info">
+NULL은 "값이 없음"을 의미합니다. NULL과의 비교는 항상 `IS NULL` 또는 `IS NOT NULL`을 사용하세요. `= NULL`은 동작하지 않습니다.
+</Callout>
+
+## 다음 단계
+
+SELECT의 기본을 배웠습니다. 다음 레슨에서는 `WHERE`절을 사용하여 조건에 맞는 데이터만 필터링하는 방법을 배웁니다.

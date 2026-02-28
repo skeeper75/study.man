@@ -1,0 +1,96 @@
+---
+title: "페이지네이션"
+description: "Offset 기반과 커서 기반 페이지네이션의 차이와 구현 방법을 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "pagination", "cursor", "offset"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/sorting", "advanced/performance"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 페이지네이션
+
+대량의 데이터를 효율적으로 페이지 단위로 가져오는 방법을 배웁니다.
+
+## Offset 기반 페이지네이션
+
+```sql
+-- 페이지 3, 페이지당 20개
+SELECT * FROM products
+ORDER BY id
+LIMIT 20 OFFSET 40;
+```
+
+### 장단점
+
+- 장점: 구현 간단, 페이지 번호 직접 접근 가능
+- 단점: OFFSET이 커질수록 느려짐, 동시 삽입 시 중복/누락 발생
+
+## 커서 기반 페이지네이션
+
+```sql
+-- 첫 페이지
+SELECT * FROM products
+ORDER BY id
+LIMIT 20;
+
+-- 다음 페이지 (마지막 ID: 20)
+SELECT * FROM products
+WHERE id > 20
+ORDER BY id
+LIMIT 20;
+```
+
+### 장단점
+
+- 장점: 일정한 성능, 실시간 데이터에 안전
+- 단점: 이전 페이지 이동 어려움, 페이지 번호 없음
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO posts (title, created_at)
+SELECT 'Post #' || i, NOW() - (i || ' hours')::INTERVAL
+FROM generate_series(1, 50) i;
+
+-- Offset 기반: 페이지 3 (페이지당 10개)
+SELECT id, title FROM posts ORDER BY id LIMIT 10 OFFSET 20;`}
+  title="Offset 기반 페이지네이션"
+/>
+
+## 복합 키 커서
+
+정렬 기준이 유일하지 않을 때:
+
+```sql
+-- created_at + id 복합 커서
+SELECT * FROM posts
+WHERE (created_at, id) < ('2026-02-28 12:00:00+09', 30)
+ORDER BY created_at DESC, id DESC
+LIMIT 20;
+```
+
+<Callout type="tip">
+커서 기반 페이지네이션에서는 정렬 기준 컬럼에 인덱스를 생성하세요. 복합 커서는 복합 인덱스와 함께 사용하면 최적 성능을 얻을 수 있습니다.
+</Callout>
+
+## 선택 가이드
+
+| 상황 | 추천 방식 |
+|------|-----------|
+| 관리자 목록 (소량 데이터) | Offset |
+| 무한 스크롤 | 커서 |
+| 실시간 피드 | 커서 |
+| 페이지 번호 필요 | Offset |
+| 수백만 행 | 커서 |
+
+## 다음 단계
+
+페이지네이션을 배웠습니다. 다음 레슨에서는 PostgreSQL의 일반적인 오류와 해결 방법을 다룹니다.

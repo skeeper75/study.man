@@ -1,0 +1,122 @@
+---
+title: "윈도우 함수"
+description: "ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD 등 윈도우 함수를 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "sql", "window-functions"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/aggregates", "intermediate/subqueries"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 윈도우 함수
+
+윈도우 함수는 행 그룹에 대해 계산을 수행하면서도 개별 행을 유지합니다. GROUP BY와 달리 행을 축소하지 않습니다.
+
+## 기본 구문
+
+```sql
+function_name() OVER (
+  PARTITION BY column    -- 그룹 분할 (선택)
+  ORDER BY column        -- 정렬 순서 (선택)
+)
+```
+
+## 순위 함수
+
+| 함수 | 동점 처리 |
+|------|-----------|
+| `ROW_NUMBER()` | 고유 번호 (1,2,3,4) |
+| `RANK()` | 동점 허용, 건너뛰기 (1,2,2,4) |
+| `DENSE_RANK()` | 동점 허용, 연속 (1,2,2,3) |
+
+```sql
+SELECT
+  name,
+  department,
+  salary,
+  ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num,
+  RANK() OVER (ORDER BY salary DESC) AS rank,
+  DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_rank
+FROM employees;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE employees (id SERIAL PRIMARY KEY, name TEXT, department TEXT, salary INTEGER);
+INSERT INTO employees (name, department, salary) VALUES
+  ('김철수', '개발팀', 6000), ('이영희', '개발팀', 4000),
+  ('박민수', '디자인팀', 6000), ('정수진', '개발팀', 6500),
+  ('한지민', '기획팀', 5000);
+
+SELECT name, salary,
+  ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num,
+  RANK() OVER (ORDER BY salary DESC) AS rank,
+  DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_rank
+FROM employees;`}
+  title="순위 함수 비교"
+/>
+
+## PARTITION BY - 부서별 순위
+
+```sql
+SELECT
+  name,
+  department,
+  salary,
+  RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS dept_rank
+FROM employees;
+```
+
+## LAG / LEAD - 이전/다음 행 참조
+
+```sql
+SELECT
+  date,
+  revenue,
+  LAG(revenue, 1) OVER (ORDER BY date) AS prev_revenue,
+  revenue - LAG(revenue, 1) OVER (ORDER BY date) AS growth
+FROM daily_sales;
+```
+
+## 집계 윈도우 함수
+
+```sql
+SELECT
+  name,
+  department,
+  salary,
+  SUM(salary) OVER (PARTITION BY department) AS dept_total,
+  ROUND(salary::numeric / SUM(salary) OVER (PARTITION BY department) * 100, 1) AS pct
+FROM employees;
+```
+
+## 프레임 절
+
+윈도우의 범위를 더 세밀하게 제어합니다:
+
+```sql
+-- 최근 3일 이동 평균
+SELECT
+  date,
+  revenue,
+  AVG(revenue) OVER (
+    ORDER BY date
+    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+  ) AS moving_avg_3d
+FROM daily_sales;
+```
+
+<Callout type="info">
+`ROWS BETWEEN` 프레임 옵션:
+- `UNBOUNDED PRECEDING`: 파티션 시작
+- `N PRECEDING`: N행 전
+- `CURRENT ROW`: 현재 행
+- `N FOLLOWING`: N행 후
+- `UNBOUNDED FOLLOWING`: 파티션 끝
+</Callout>
+
+## 다음 단계
+
+윈도우 함수를 배웠습니다. 다음 레슨에서는 트랜잭션을 배웁니다.

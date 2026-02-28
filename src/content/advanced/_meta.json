@@ -1,0 +1,7 @@
+{
+  "indexes": "인덱스",
+  "json": "JSONB",
+  "full-text-search": "전문 검색",
+  "partitioning": "파티셔닝",
+  "performance": "성능 최적화"
+}

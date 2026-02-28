@@ -1,0 +1,129 @@
+---
+title: "테이블 생성"
+description: "CREATE TABLE, 데이터 타입, 제약 조건을 사용하여 테이블을 설계하는 방법을 배웁니다."
+difficulty: "beginner"
+tags: ["postgresql", "sql", "create-table", "data-types", "constraints"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["data-modeling/relationships", "reference/data-types"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 테이블 생성
+
+테이블은 데이터를 저장하는 기본 구조입니다. 좋은 테이블 설계는 데이터 무결성과 성능의 기반입니다.
+
+## CREATE TABLE 기본
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## 주요 데이터 타입
+
+| 타입 | 설명 | 예시 |
+|------|------|------|
+| `INTEGER` | 정수 (-2B ~ 2B) | `42` |
+| `BIGINT` | 큰 정수 | `9223372036854775807` |
+| `TEXT` | 가변 길이 문자열 | `'Hello'` |
+| `VARCHAR(n)` | 최대 n자 문자열 | `'Hello'` |
+| `BOOLEAN` | 참/거짓 | `TRUE`, `FALSE` |
+| `TIMESTAMPTZ` | 타임존 포함 시간 | `'2026-01-15 09:30:00+09'` |
+| `NUMERIC(p,s)` | 정밀 소수 | `99999.99` |
+| `JSONB` | JSON 바이너리 | `'{"key": "value"}'` |
+| `UUID` | 고유 식별자 | `gen_random_uuid()` |
+
+<Callout type="tip">
+`TEXT`와 `VARCHAR`는 PostgreSQL에서 성능 차이가 없습니다. 길이 제한이 비즈니스 규칙이 아니라면 `TEXT`를 사용하세요.
+</Callout>
+
+## 제약 조건 (Constraints)
+
+```sql
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  sku TEXT UNIQUE,
+  price NUMERIC(10,2) CHECK (price > 0),
+  stock INTEGER DEFAULT 0 CHECK (stock >= 0),
+  category_id INTEGER REFERENCES categories(id)
+);
+```
+
+| 제약 조건 | 설명 |
+|-----------|------|
+| `PRIMARY KEY` | 고유 식별자, NULL 불허 |
+| `NOT NULL` | NULL 값 불허 |
+| `UNIQUE` | 중복 값 불허 |
+| `CHECK` | 조건 충족 필수 |
+| `DEFAULT` | 기본값 설정 |
+| `REFERENCES` | 외래 키 참조 |
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE categories (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) CHECK (price > 0),
+  stock INTEGER DEFAULT 0,
+  category_id INTEGER REFERENCES categories(id)
+);
+
+INSERT INTO categories (name) VALUES ('전자제품'), ('식품');
+INSERT INTO products (name, price, stock, category_id) VALUES
+  ('노트북', 1200000, 50, 1),
+  ('커피', 4500, 1000, 2);
+
+SELECT p.name, p.price, c.name AS category
+FROM products p
+JOIN categories c ON p.category_id = c.id;`}
+  title="테이블 생성과 제약 조건"
+/>
+
+## SERIAL vs IDENTITY
+
+```sql
+-- 전통적 방식
+CREATE TABLE t1 (id SERIAL PRIMARY KEY);
+
+-- SQL 표준 방식 (권장)
+CREATE TABLE t2 (id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+```
+
+<Callout type="info">
+`GENERATED ALWAYS AS IDENTITY`는 SQL 표준이며, `SERIAL`보다 더 안전합니다. 새 프로젝트에서는 IDENTITY를 권장합니다.
+</Callout>
+
+## 테이블 수정
+
+```sql
+-- 컬럼 추가
+ALTER TABLE users ADD COLUMN phone TEXT;
+
+-- 컬럼 타입 변경
+ALTER TABLE users ALTER COLUMN phone TYPE VARCHAR(20);
+
+-- NOT NULL 추가
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+
+-- 컬럼 삭제
+ALTER TABLE users DROP COLUMN phone;
+
+-- 테이블 삭제
+DROP TABLE IF EXISTS temp_table;
+```
+
+## 다음 단계
+
+테이블 생성을 배웠습니다. 다음 레슨에서는 테이블 간의 관계를 정의하고 JOIN으로 연결하는 방법을 배웁니다.

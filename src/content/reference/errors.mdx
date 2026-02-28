@@ -1,0 +1,96 @@
+---
+title: "오류 코드"
+description: "PostgreSQL의 주요 오류 코드(SQLSTATE)와 해결 방법을 정리합니다."
+difficulty: "beginner"
+tags: ["postgresql", "errors", "sqlstate", "reference"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["practical/error-handling", "intermediate/transactions"]
+---
+
+import { Callout } from '@/components/content/Callout'
+
+# 오류 코드
+
+PostgreSQL의 주요 SQLSTATE 오류 코드와 해결 방법을 정리합니다.
+
+## 오류 코드 구조
+
+PostgreSQL 오류 코드는 5자리입니다:
+- 처음 2자리: 오류 클래스
+- 나머지 3자리: 구체적 오류
+
+## Class 00 - Successful Completion
+
+| 코드 | 이름 | 설명 |
+|------|------|------|
+| `00000` | successful_completion | 성공 |
+
+## Class 23 - Integrity Constraint Violation
+
+| 코드 | 이름 | 원인 | 해결 방법 |
+|------|------|------|-----------|
+| `23502` | not_null_violation | NOT NULL 컬럼에 NULL 삽입 | 값 제공 또는 DEFAULT 설정 |
+| `23503` | foreign_key_violation | 존재하지 않는 외래 키 참조 | 참조 대상 확인 |
+| `23505` | unique_violation | UNIQUE 제약 조건 위반 | ON CONFLICT 사용 |
+| `23514` | check_violation | CHECK 제약 조건 위반 | 값 범위 확인 |
+
+## Class 42 - Syntax Error or Access Rule Violation
+
+| 코드 | 이름 | 원인 | 해결 방법 |
+|------|------|------|-----------|
+| `42601` | syntax_error | SQL 문법 오류 | 쿼리 문법 확인 |
+| `42602` | invalid_name | 잘못된 이름 | 식별자 확인 |
+| `42703` | undefined_column | 존재하지 않는 컬럼 | 컬럼명 확인 |
+| `42P01` | undefined_table | 존재하지 않는 테이블 | 테이블명 확인 |
+| `42804` | datatype_mismatch | 데이터 타입 불일치 | 타입 캐스팅 |
+
+## Class 40 - Transaction Rollback
+
+| 코드 | 이름 | 원인 | 해결 방법 |
+|------|------|------|-----------|
+| `40001` | serialization_failure | 직렬화 실패 | 트랜잭션 재시도 |
+| `40P01` | deadlock_detected | 데드락 감지 | 접근 순서 통일 |
+
+## Class 53 - Insufficient Resources
+
+| 코드 | 이름 | 원인 | 해결 방법 |
+|------|------|------|-----------|
+| `53100` | disk_full | 디스크 용량 부족 | 디스크 정리 |
+| `53200` | out_of_memory | 메모리 부족 | work_mem 조정 |
+| `53300` | too_many_connections | 연결 수 초과 | 커넥션 풀 사용 |
+
+## Class 55 - Object Not In Prerequisite State
+
+| 코드 | 이름 | 원인 | 해결 방법 |
+|------|------|------|-----------|
+| `55006` | object_in_use | 객체 사용 중 | 사용 중인 연결 종료 |
+| `55P03` | lock_not_available | 잠금 획득 불가 | lock_timeout 설정 |
+
+## Class 57 - Operator Intervention
+
+| 코드 | 이름 | 원인 |
+|------|------|------|
+| `57014` | query_canceled | 쿼리 취소됨 (timeout) |
+| `57P01` | admin_shutdown | 관리자에 의한 종료 |
+
+## 오류 확인 방법
+
+```sql
+-- psql에서 마지막 오류의 SQLSTATE 확인
+\errverbose
+
+-- PL/pgSQL에서 오류 처리
+BEGIN
+  -- ... 작업 ...
+EXCEPTION
+  WHEN unique_violation THEN
+    RAISE NOTICE 'Duplicate key detected';
+  WHEN foreign_key_violation THEN
+    RAISE NOTICE 'Referenced record not found';
+END;
+```
+
+<Callout type="info">
+전체 오류 코드 목록은 [PostgreSQL 공식 문서](https://www.postgresql.org/docs/current/errcodes-appendix.html)에서 확인할 수 있습니다.
+</Callout>

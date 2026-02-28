@@ -1,0 +1,136 @@
+---
+title: "데이터 타입"
+description: "PostgreSQL의 모든 주요 데이터 타입과 사용법을 정리합니다."
+difficulty: "beginner"
+tags: ["postgresql", "data-types", "reference"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["data-modeling/tables", "advanced/json"]
+---
+
+import { VersionBadge } from '@/components/content/VersionBadge'
+import { Callout } from '@/components/content/Callout'
+
+# 데이터 타입
+
+PostgreSQL의 주요 데이터 타입을 정리합니다.
+
+## 숫자 타입
+
+| 타입 | 크기 | 범위 | 용도 |
+|------|------|------|------|
+| `SMALLINT` | 2바이트 | -32,768 ~ 32,767 | 작은 정수 |
+| `INTEGER` | 4바이트 | -2B ~ 2B | 일반 정수 |
+| `BIGINT` | 8바이트 | -9.2E18 ~ 9.2E18 | 큰 정수, PK |
+| `NUMERIC(p,s)` | 가변 | 최대 131,072자리 | 정밀 소수 (금액) |
+| `REAL` | 4바이트 | 6자리 정밀도 | 과학 계산 |
+| `DOUBLE PRECISION` | 8바이트 | 15자리 정밀도 | 과학 계산 |
+| `SERIAL` | 4바이트 | 1 ~ 2B | 자동 증가 (레거시) |
+| `BIGSERIAL` | 8바이트 | 1 ~ 9.2E18 | 자동 증가 (레거시) |
+
+<Callout type="info">
+금액 데이터에는 `NUMERIC`을 사용하세요. `REAL`이나 `DOUBLE PRECISION`은 부동소수점 오차가 있습니다.
+</Callout>
+
+## 문자열 타입
+
+| 타입 | 설명 |
+|------|------|
+| `TEXT` | 무제한 가변 길이 |
+| `VARCHAR(n)` | 최대 n자 |
+| `CHAR(n)` | 고정 n자 (공백 패딩) |
+
+<Callout type="tip">
+PostgreSQL에서는 `TEXT`와 `VARCHAR`의 성능이 동일합니다. 길이 제한이 비즈니스 요구사항이 아니라면 `TEXT`를 사용하세요.
+</Callout>
+
+## 날짜/시간 타입
+
+| 타입 | 설명 | 예시 |
+|------|------|------|
+| `DATE` | 날짜만 | `'2026-02-28'` |
+| `TIME` | 시간만 | `'14:30:00'` |
+| `TIMESTAMP` | 날짜+시간 (타임존 없음) | `'2026-02-28 14:30:00'` |
+| `TIMESTAMPTZ` | 날짜+시간+타임존 | `'2026-02-28 14:30:00+09'` |
+| `INTERVAL` | 시간 간격 | `'3 days 4 hours'` |
+
+<Callout type="warning">
+항상 `TIMESTAMPTZ`를 사용하세요. `TIMESTAMP`는 타임존 정보가 없어 다른 타임존의 클라이언트에서 잘못된 시간이 표시될 수 있습니다.
+</Callout>
+
+## Boolean 타입
+
+```sql
+-- TRUE, FALSE, NULL
+SELECT * FROM users WHERE is_active = TRUE;
+SELECT * FROM users WHERE is_active IS NOT NULL;
+```
+
+## JSON 타입
+
+| 타입 | 저장 방식 | 인덱싱 |
+|------|-----------|--------|
+| `JSON` | 텍스트 | 불가 |
+| `JSONB` | 바이너리 | GIN 가능 |
+
+## 배열 타입
+
+```sql
+CREATE TABLE tags (
+  id SERIAL PRIMARY KEY,
+  name TEXT,
+  labels TEXT[]  -- 텍스트 배열
+);
+
+INSERT INTO tags (name, labels) VALUES ('post1', ARRAY['sql', 'postgresql']);
+
+SELECT * FROM tags WHERE 'sql' = ANY(labels);
+```
+
+## UUID 타입
+
+```sql
+-- 랜덤 UUID 생성
+SELECT gen_random_uuid();
+
+CREATE TABLE resources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+);
+```
+
+## 범위 타입
+
+| 타입 | 설명 |
+|------|------|
+| `int4range` | INTEGER 범위 |
+| `int8range` | BIGINT 범위 |
+| `numrange` | NUMERIC 범위 |
+| `tstzrange` | TIMESTAMPTZ 범위 |
+| `daterange` | DATE 범위 |
+
+```sql
+SELECT '[2026-01-01,2026-12-31]'::daterange @> '2026-06-15'::date;
+```
+
+## 특수 타입
+
+| 타입 | 설명 |
+|------|------|
+| `INET` | IPv4/IPv6 주소 |
+| `CIDR` | 네트워크 주소 |
+| `MACADDR` | MAC 주소 |
+| `POINT` | 2D 좌표 |
+| `TSVECTOR` | 전문 검색 벡터 |
+| `HSTORE` | 키-값 쌍 |
+
+## 타입 캐스팅
+
+```sql
+-- :: 연산자
+SELECT '42'::INTEGER;
+SELECT '2026-01-01'::DATE;
+SELECT 3.14::TEXT;
+
+-- CAST 함수
+SELECT CAST('42' AS INTEGER);
+```

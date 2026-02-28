@@ -1,0 +1,123 @@
+---
+title: "성능 최적화"
+description: "EXPLAIN ANALYZE, 쿼리 최적화, 인덱스 전략, 설정 튜닝을 배웁니다."
+difficulty: "advanced"
+tags: ["postgresql", "performance", "explain", "optimization"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["advanced/indexes", "advanced/partitioning"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 성능 최적화
+
+PostgreSQL 쿼리의 성능을 분석하고 최적화하는 방법을 배웁니다.
+
+## EXPLAIN ANALYZE 읽기
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM users WHERE email = 'test@example.com';
+```
+
+### 주요 지표
+
+| 지표 | 설명 |
+|------|------|
+| `cost` | 예상 비용 (시작..전체) |
+| `rows` | 예상 행 수 |
+| `actual time` | 실제 실행 시간 (ms) |
+| `loops` | 반복 횟수 |
+| `Buffers: shared hit` | 캐시 히트 |
+| `Buffers: shared read` | 디스크 읽기 |
+
+## 스캔 유형
+
+```
+Seq Scan         ─  전체 테이블 스캔 (느림)
+Index Scan       ─  인덱스 + 테이블 조회
+Index Only Scan  ─  인덱스만으로 완료 (가장 빠름)
+Bitmap Index Scan─  인덱스로 비트맵 생성 후 조회
+```
+
+## 흔한 성능 문제
+
+### 1. 인덱스 미사용
+
+```sql
+-- 인덱스 사용 불가 (함수 적용)
+WHERE LOWER(email) = 'test@example.com'
+
+-- 해결: 함수 인덱스
+CREATE INDEX idx_users_email_lower ON users (LOWER(email));
+```
+
+### 2. 잘못된 통계
+
+```sql
+-- 통계 갱신
+ANALYZE users;
+
+-- 테이블 전체 VACUUM + ANALYZE
+VACUUM ANALYZE users;
+```
+
+### 3. N+1 쿼리 문제
+
+```sql
+-- 나쁜 예: 각 주문에 대해 별도 쿼리
+-- 좋은 예: JOIN으로 한 번에 조회
+SELECT o.*, c.name
+FROM orders o
+JOIN customers c ON o.customer_id = c.id;
+```
+
+## 쿼리 최적화 체크리스트
+
+1. `EXPLAIN ANALYZE`로 실행 계획 확인
+2. Seq Scan이 나타나면 인덱스 필요성 검토
+3. 조인 순서와 조인 방식 확인
+4. 불필요한 `SELECT *` 제거
+5. 서브쿼리를 JOIN이나 CTE로 변환 검토
+6. `LIMIT`이 인덱스와 함께 사용되는지 확인
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  department TEXT
+);
+
+INSERT INTO users (name, email, department)
+SELECT
+  'user_' || i,
+  'user' || i || '@example.com',
+  CASE i % 3 WHEN 0 THEN 'dev' WHEN 1 THEN 'design' ELSE 'pm' END
+FROM generate_series(1, 1000) i;
+
+-- 인덱스 없이 조회
+EXPLAIN ANALYZE
+SELECT * FROM users WHERE email = 'user500@example.com';`}
+  title="EXPLAIN ANALYZE 실습"
+/>
+
+## 주요 설정 파라미터
+
+| 파라미터 | 설명 | 권장값 |
+|----------|------|--------|
+| `shared_buffers` | 공유 메모리 | 전체 RAM의 25% |
+| `effective_cache_size` | OS 캐시 추정 | 전체 RAM의 50-75% |
+| `work_mem` | 정렬/해시 메모리 | 64MB-256MB |
+| `maintenance_work_mem` | VACUUM 메모리 | 512MB-1GB |
+| `random_page_cost` | SSD 디스크 비용 | 1.1 (SSD) |
+
+<Callout type="warning">
+`work_mem`은 각 정렬/해시 작업마다 할당됩니다. 동시 연결이 많을 경우 총 메모리 사용량에 주의하세요.
+</Callout>
+
+## 다음 단계
+
+성능 최적화를 배웠습니다. 다음 섹션에서는 실전에서 자주 사용하는 SQL 패턴을 다룹니다.

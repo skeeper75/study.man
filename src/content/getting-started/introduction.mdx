@@ -1,0 +1,71 @@
+---
+title: "PostgreSQL이란?"
+description: "PostgreSQL의 역사, 특징, 그리고 왜 PostgreSQL을 배워야 하는지 알아봅니다."
+difficulty: "beginner"
+tags: ["postgresql", "introduction", "database"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["getting-started/installation", "getting-started/first-query"]
+---
+
+import { Callout } from '@/components/content/Callout'
+import { VersionBadge } from '@/components/content/VersionBadge'
+
+# PostgreSQL이란?
+
+**PostgreSQL**(포스트그레스큐엘)은 30년 이상의 역사를 가진 오픈소스 관계형 데이터베이스 관리 시스템(RDBMS)입니다.
+
+## 왜 PostgreSQL인가?
+
+PostgreSQL은 다음과 같은 이유로 전 세계 개발자들에게 사랑받고 있습니다:
+
+- **ACID 완전 지원**: 데이터 무결성을 보장하는 트랜잭션 처리
+- **확장성**: 사용자 정의 타입, 함수, 연산자 생성 가능
+- **JSON/JSONB 지원**: NoSQL과 같은 유연한 데이터 모델링
+- **전문 검색(Full-Text Search)**: 별도 엔진 없이 텍스트 검색 가능
+- **풍부한 데이터 타입**: 배열, hstore, 범위 타입 등
+
+## PostgreSQL의 주요 특징
+
+### 표준 SQL 준수
+
+PostgreSQL은 SQL 표준을 가장 충실히 구현한 데이터베이스 중 하나입니다. SQL:2023 표준의 대부분을 지원합니다.
+
+### 버전별 주요 기능
+
+| 버전 | 주요 기능 |
+|------|-----------|
+| PostgreSQL 13 | 증분 정렬, B-tree 중복 제거 |
+| PostgreSQL 14 | 다중 범위 타입, JSON 편의 기능 |
+| PostgreSQL 15 | MERGE 명령, 공개 스키마 권한 변경 |
+| PostgreSQL 16 | 논리적 복제 개선, pg_stat_io |
+| PostgreSQL 17 | 증분 백업, JSON_TABLE <VersionBadge version={17} /> |
+
+<Callout type="info">
+이 학습 가이드에서는 PostgreSQL 13 이상을 기준으로 설명합니다. 특정 버전에서만 사용 가능한 기능은 버전 배지로 표시합니다.
+</Callout>
+
+## RDBMS 비교
+
+```
+PostgreSQL  ─  오픈소스, 기능 풍부, 확장성
+MySQL       ─  오픈소스, 단순함, 빠른 읽기
+SQLite      ─  내장형, 서버 불필요, 경량
+Oracle      ─  상용, 엔터프라이즈, 고비용
+```
+
+## 이 가이드에서 배울 수 있는 것
+
+1. SQL 기초부터 고급 쿼리까지
+2. 데이터베이스 설계와 정규화
+3. 인덱스와 쿼리 최적화
+4. JSONB, 전문 검색 등 PostgreSQL만의 기능
+5. 실무에서 바로 사용할 수 있는 SQL 패턴
+
+<Callout type="tip">
+이 사이트의 모든 SQL 예제는 브라우저에서 직접 실행해볼 수 있습니다. 설치 없이 바로 학습을 시작하세요!
+</Callout>
+
+## 다음 단계
+
+다음 레슨에서는 로컬 환경에 PostgreSQL을 설치하는 방법을 알아보겠습니다. 하지만 이 사이트의 SQL 플레이그라운드를 사용하면 설치 없이도 학습할 수 있습니다.

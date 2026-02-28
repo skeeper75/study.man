@@ -1,0 +1,6 @@
+{
+  "joins": "JOIN 심화",
+  "subqueries": "서브쿼리와 CTE",
+  "window-functions": "윈도우 함수",
+  "transactions": "트랜잭션"
+}

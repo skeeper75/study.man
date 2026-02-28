@@ -1,0 +1,114 @@
+---
+title: "내장 함수"
+description: "PostgreSQL의 주요 내장 함수를 카테고리별로 정리합니다."
+difficulty: "beginner"
+tags: ["postgresql", "functions", "reference"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["basics/select", "reference/data-types"]
+---
+
+import { Callout } from '@/components/content/Callout'
+import { VersionBadge } from '@/components/content/VersionBadge'
+
+# 내장 함수
+
+PostgreSQL의 자주 사용하는 내장 함수를 카테고리별로 정리합니다.
+
+## 문자열 함수
+
+| 함수 | 설명 | 예시 | 결과 |
+|------|------|------|------|
+| `LENGTH(s)` | 길이 | `LENGTH('Hello')` | `5` |
+| `UPPER(s)` | 대문자 | `UPPER('hello')` | `'HELLO'` |
+| `LOWER(s)` | 소문자 | `LOWER('HELLO')` | `'hello'` |
+| `TRIM(s)` | 양쪽 공백 제거 | `TRIM(' hi ')` | `'hi'` |
+| `SUBSTRING(s,i,n)` | 부분 문자열 | `SUBSTRING('Hello',1,3)` | `'Hel'` |
+| `REPLACE(s,f,t)` | 치환 | `REPLACE('abc','b','B')` | `'aBc'` |
+| `CONCAT(a,b,...)` | 연결 | `CONCAT('a','b','c')` | `'abc'` |
+| `SPLIT_PART(s,d,n)` | 분할 | `SPLIT_PART('a-b-c','-',2)` | `'b'` |
+| `LEFT(s,n)` | 왼쪽 n자 | `LEFT('Hello',3)` | `'Hel'` |
+| `RIGHT(s,n)` | 오른쪽 n자 | `RIGHT('Hello',3)` | `'llo'` |
+| `LPAD(s,n,c)` | 왼쪽 패딩 | `LPAD('42',5,'0')` | `'00042'` |
+
+## 숫자 함수
+
+| 함수 | 설명 | 예시 | 결과 |
+|------|------|------|------|
+| `ROUND(n,d)` | 반올림 | `ROUND(3.456,2)` | `3.46` |
+| `CEIL(n)` | 올림 | `CEIL(3.2)` | `4` |
+| `FLOOR(n)` | 내림 | `FLOOR(3.8)` | `3` |
+| `ABS(n)` | 절댓값 | `ABS(-5)` | `5` |
+| `MOD(a,b)` | 나머지 | `MOD(10,3)` | `1` |
+| `POWER(a,b)` | 거듭제곱 | `POWER(2,3)` | `8` |
+| `SQRT(n)` | 제곱근 | `SQRT(16)` | `4` |
+| `RANDOM()` | 0~1 난수 | `RANDOM()` | `0.7321...` |
+
+## 날짜/시간 함수
+
+| 함수 | 설명 | 예시 |
+|------|------|------|
+| `NOW()` | 현재 시각 | `2026-02-28 14:30:00+09` |
+| `CURRENT_DATE` | 현재 날짜 | `2026-02-28` |
+| `CURRENT_TIME` | 현재 시간 | `14:30:00+09` |
+| `DATE_TRUNC(f,t)` | 절삭 | `DATE_TRUNC('month', NOW())` |
+| `EXTRACT(f FROM t)` | 필드 추출 | `EXTRACT(YEAR FROM NOW())` |
+| `AGE(t1,t2)` | 차이 | `AGE('2026-01-01','2025-01-01')` |
+| `TO_CHAR(t,f)` | 포맷팅 | `TO_CHAR(NOW(),'YYYY-MM-DD')` |
+
+```sql
+-- 날짜 연산
+SELECT NOW() + INTERVAL '3 days';
+SELECT NOW() - INTERVAL '1 hour';
+SELECT DATE_TRUNC('month', NOW());
+SELECT EXTRACT(DOW FROM NOW());  -- 0=일, 6=토
+```
+
+## 조건 함수
+
+| 함수 | 설명 |
+|------|------|
+| `COALESCE(a,b,...)` | 첫 번째 NULL이 아닌 값 |
+| `NULLIF(a,b)` | a=b이면 NULL, 아니면 a |
+| `GREATEST(a,b,...)` | 최댓값 |
+| `LEAST(a,b,...)` | 최솟값 |
+
+## 집계 함수
+
+| 함수 | 설명 |
+|------|------|
+| `COUNT(*)` | 행 수 |
+| `SUM(col)` | 합계 |
+| `AVG(col)` | 평균 |
+| `MIN(col)` | 최솟값 |
+| `MAX(col)` | 최댓값 |
+| `STRING_AGG(col,sep)` | 문자열 집계 |
+| `ARRAY_AGG(col)` | 배열 집계 |
+| `BOOL_AND(col)` | 모두 TRUE인지 |
+| `BOOL_OR(col)` | 하나라도 TRUE인지 |
+
+## JSON 함수
+
+| 함수 | 설명 |
+|------|------|
+| `jsonb_build_object(k,v,...)` | JSONB 객체 생성 |
+| `jsonb_build_array(...)` | JSONB 배열 생성 |
+| `jsonb_agg(val)` | JSONB 배열 집계 |
+| `jsonb_object_agg(k,v)` | JSONB 객체 집계 |
+| `jsonb_each(j)` | 키-값 펼치기 |
+| `jsonb_array_elements(j)` | 배열 요소 펼치기 |
+| `jsonb_typeof(j)` | 타입 확인 |
+| `jsonb_set(j,path,val)` | 값 설정 |
+| `jsonb_strip_nulls(j)` | NULL 제거 |
+
+## 시스템 함수
+
+| 함수 | 설명 |
+|------|------|
+| `current_user` | 현재 사용자 |
+| `current_database()` | 현재 DB |
+| `pg_database_size(db)` | DB 크기 |
+| `pg_table_size(t)` | 테이블 크기 |
+| `pg_size_pretty(n)` | 사람이 읽기 쉬운 크기 |
+| `gen_random_uuid()` | 랜덤 UUID |
+| `version()` | PG 버전 |

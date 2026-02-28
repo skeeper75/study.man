@@ -1,0 +1,125 @@
+---
+title: "트랜잭션"
+description: "BEGIN, COMMIT, ROLLBACK, SAVEPOINT를 사용한 트랜잭션 관리를 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "sql", "transaction", "acid"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["data-modeling/tables", "advanced/performance"]
+---
+
+import { Callout } from '@/components/content/Callout'
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+
+# 트랜잭션
+
+**트랜잭션(Transaction)**은 하나의 작업 단위로 실행되어야 하는 SQL 문의 묶음입니다.
+
+## ACID 속성
+
+| 속성 | 설명 |
+|------|------|
+| **A**tomicity (원자성) | 전체 성공 또는 전체 실패 |
+| **C**onsistency (일관성) | 항상 유효한 상태 유지 |
+| **I**solation (격리성) | 동시 실행 트랜잭션 간 독립 |
+| **D**urability (지속성) | 커밋된 데이터는 영구 저장 |
+
+## 기본 트랜잭션
+
+```sql
+BEGIN;
+
+UPDATE accounts SET balance = balance - 10000
+WHERE id = 1;
+
+UPDATE accounts SET balance = balance + 10000
+WHERE id = 2;
+
+COMMIT;
+```
+
+## ROLLBACK - 취소
+
+```sql
+BEGIN;
+
+DELETE FROM important_data WHERE id = 1;
+
+-- 실수 발견! 되돌리기
+ROLLBACK;
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE accounts (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  balance INTEGER NOT NULL CHECK (balance >= 0)
+);
+
+INSERT INTO accounts (name, balance) VALUES
+  ('김철수', 100000),
+  ('이영희', 50000);
+
+-- 계좌 이체 트랜잭션
+BEGIN;
+UPDATE accounts SET balance = balance - 30000 WHERE name = '김철수';
+UPDATE accounts SET balance = balance + 30000 WHERE name = '이영희';
+COMMIT;
+
+SELECT * FROM accounts;`}
+  title="계좌 이체 트랜잭션"
+/>
+
+## SAVEPOINT - 중간 저장점
+
+```sql
+BEGIN;
+
+INSERT INTO orders (customer_id, total) VALUES (1, 50000);
+SAVEPOINT order_created;
+
+INSERT INTO order_items (order_id, product_id, qty) VALUES (1, 999, 1);
+-- 오류 발생! 상품 999는 없음
+
+ROLLBACK TO SAVEPOINT order_created;
+-- 주문은 유지하고 아이템만 롤백
+
+INSERT INTO order_items (order_id, product_id, qty) VALUES (1, 1, 1);
+COMMIT;
+```
+
+## 격리 수준
+
+| 수준 | Dirty Read | Non-repeatable Read | Phantom Read |
+|------|:----------:|:-------------------:|:------------:|
+| READ UNCOMMITTED | O | O | O |
+| READ COMMITTED (기본) | X | O | O |
+| REPEATABLE READ | X | X | X* |
+| SERIALIZABLE | X | X | X |
+
+```sql
+-- 격리 수준 설정
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+-- ... 작업 ...
+COMMIT;
+```
+
+<Callout type="info">
+PostgreSQL의 `READ COMMITTED`가 기본 격리 수준입니다. 대부분의 경우 이 수준으로 충분합니다. `REPEATABLE READ`는 PostgreSQL에서 Phantom Read도 방지합니다.
+</Callout>
+
+## 실무 팁
+
+- 트랜잭션은 가능한 짧게 유지하세요
+- 오래 실행되는 트랜잭션은 잠금 경합과 VACUUM 지연을 유발합니다
+- 자동 커밋 모드에서는 각 SQL 문이 개별 트랜잭션입니다
+- 에러 발생 시 PostgreSQL은 해당 트랜잭션의 모든 후속 명령을 거부합니다
+
+<Callout type="warning">
+PostgreSQL에서는 트랜잭션 내에서 에러가 발생하면 `ROLLBACK` 전까지 추가 명령을 실행할 수 없습니다. 이를 "aborted transaction" 상태라고 합니다.
+</Callout>
+
+## 다음 단계
+
+트랜잭션을 배웠습니다. 다음 섹션에서는 인덱스, JSONB, 전문 검색 등 고급 주제를 다룹니다.

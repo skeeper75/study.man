@@ -1,0 +1,116 @@
+---
+title: "인덱스"
+description: "B-tree, GiST, GIN, BRIN 인덱스와 EXPLAIN ANALYZE를 배웁니다."
+difficulty: "advanced"
+tags: ["postgresql", "index", "performance", "explain"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["advanced/performance", "advanced/json"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+import { VersionBadge } from '@/components/content/VersionBadge'
+
+# 인덱스
+
+인덱스는 데이터 조회 속도를 높이는 핵심 메커니즘입니다. 책의 색인과 같은 역할을 합니다.
+
+## 인덱스 생성
+
+```sql
+-- 기본 B-tree 인덱스
+CREATE INDEX idx_users_email ON users (email);
+
+-- 유니크 인덱스
+CREATE UNIQUE INDEX idx_users_username ON users (username);
+
+-- 복합 인덱스
+CREATE INDEX idx_orders_customer_date ON orders (customer_id, created_at DESC);
+
+-- 부분 인덱스 (조건부)
+CREATE INDEX idx_orders_active ON orders (created_at)
+WHERE status = 'active';
+```
+
+## 인덱스 유형
+
+| 유형 | 용도 | 연산자 |
+|------|------|--------|
+| **B-tree** | 기본, 범위 검색 | `=`, `<`, `>`, `BETWEEN` |
+| **Hash** | 동등 비교만 | `=` |
+| **GiST** | 공간, 범위 타입 | `@>`, `<@`, `&&` |
+| **GIN** | 배열, JSONB, 전문 검색 | `@>`, `?`, `@@` |
+| **BRIN** | 대용량 순차 데이터 | `<`, `>`, `=` |
+
+## EXPLAIN ANALYZE
+
+쿼리 실행 계획을 분석합니다:
+
+```sql
+EXPLAIN ANALYZE
+SELECT * FROM users WHERE email = 'test@example.com';
+```
+
+출력 예시:
+```
+Index Scan using idx_users_email on users  (cost=0.29..8.30 rows=1 width=64)
+  (actual time=0.015..0.016 rows=1 loops=1)
+  Index Cond: (email = 'test@example.com'::text)
+Planning Time: 0.085 ms
+Execution Time: 0.032 ms
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username TEXT NOT NULL,
+  email TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_email ON users (email);
+
+INSERT INTO users (username, email)
+SELECT 'user_' || i, 'user' || i || '@example.com'
+FROM generate_series(1, 1000) AS i;
+
+EXPLAIN ANALYZE
+SELECT * FROM users WHERE email = 'user500@example.com';`}
+  title="EXPLAIN ANALYZE"
+/>
+
+## 복합 인덱스 순서
+
+복합 인덱스에서 컬럼 순서가 중요합니다:
+
+```sql
+-- (customer_id, created_at) 인덱스는:
+-- O: WHERE customer_id = 1
+-- O: WHERE customer_id = 1 AND created_at > '2025-01-01'
+-- X: WHERE created_at > '2025-01-01'  (첫 컬럼 조건 없음)
+```
+
+<Callout type="tip">
+복합 인덱스의 컬럼 순서: 등호 조건 컬럼을 먼저, 범위 조건 컬럼을 나중에 배치하세요.
+</Callout>
+
+## 인덱스 관리
+
+```sql
+-- 인덱스 목록 확인
+SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'users';
+
+-- 인덱스 크기
+SELECT pg_size_pretty(pg_relation_size('idx_users_email'));
+
+-- 인덱스 삭제
+DROP INDEX idx_users_email;
+
+-- 동시 인덱스 생성 (락 없이)
+CREATE INDEX CONCURRENTLY idx_users_email ON users (email);
+```
+
+## 다음 단계
+
+인덱스를 배웠습니다. 다음 레슨에서는 JSONB 데이터 처리를 배웁니다.

@@ -1,0 +1,150 @@
+---
+title: "SQL 패턴"
+description: "UPSERT, 소프트 삭제, 감사 로그, 임시 테이블 등 실무 SQL 패턴을 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "patterns", "upsert", "soft-delete"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["practical/error-handling", "intermediate/transactions"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# SQL 패턴
+
+실무에서 자주 사용하는 PostgreSQL SQL 패턴을 정리합니다.
+
+## UPSERT (INSERT ... ON CONFLICT)
+
+```sql
+INSERT INTO settings (key, value)
+VALUES ('theme', 'dark')
+ON CONFLICT (key) DO UPDATE
+SET value = EXCLUDED.value, updated_at = NOW();
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 첫 번째 삽입
+INSERT INTO settings (key, value) VALUES ('theme', 'light')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
+-- UPSERT: 이미 존재하므로 업데이트
+INSERT INTO settings (key, value) VALUES ('theme', 'dark')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
+SELECT * FROM settings;`}
+  title="UPSERT 패턴"
+/>
+
+## 소프트 삭제
+
+데이터를 물리적으로 삭제하지 않고 삭제 표시만 합니다:
+
+```sql
+-- 테이블 설계
+CREATE TABLE posts (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  deleted_at TIMESTAMPTZ  -- NULL이면 활성
+);
+
+-- 소프트 삭제
+UPDATE posts SET deleted_at = NOW() WHERE id = 1;
+
+-- 활성 데이터만 조회 (뷰 사용)
+CREATE VIEW active_posts AS
+SELECT * FROM posts WHERE deleted_at IS NULL;
+
+-- 복구
+UPDATE posts SET deleted_at = NULL WHERE id = 1;
+```
+
+## 감사 로그 (Audit Trail)
+
+```sql
+CREATE TABLE audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  old_data JSONB,
+  new_data JSONB,
+  changed_by TEXT DEFAULT current_user,
+  changed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 트리거 함수
+CREATE FUNCTION audit_trigger() RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO audit_log (table_name, operation, old_data, new_data)
+  VALUES (
+    TG_TABLE_NAME,
+    TG_OP,
+    CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE NULL END,
+    CASE WHEN TG_OP = 'INSERT' THEN to_jsonb(NEW)
+         WHEN TG_OP = 'UPDATE' THEN to_jsonb(NEW) ELSE NULL END
+  );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## Bulk UPSERT
+
+여러 행을 한 번에 UPSERT:
+
+```sql
+INSERT INTO products (sku, name, price)
+VALUES
+  ('SKU001', '노트북', 1200000),
+  ('SKU002', '키보드', 89000),
+  ('SKU003', '마우스', 35000)
+ON CONFLICT (sku) DO UPDATE
+SET
+  name = EXCLUDED.name,
+  price = EXCLUDED.price;
+```
+
+## 임시 테이블
+
+세션 범위의 임시 데이터:
+
+```sql
+-- 세션이 끝나면 자동 삭제
+CREATE TEMP TABLE temp_results AS
+SELECT * FROM orders WHERE created_at > '2026-01-01';
+```
+
+## RETURNING 절
+
+DML 결과를 바로 반환:
+
+```sql
+-- INSERT 후 생성된 ID 반환
+INSERT INTO users (name, email)
+VALUES ('김철수', 'kim@ex.com')
+RETURNING id, created_at;
+
+-- UPDATE 후 변경된 행 반환
+UPDATE products SET price = price * 1.1
+WHERE category = '전자제품'
+RETURNING id, name, price;
+
+-- DELETE 후 삭제된 행 반환
+DELETE FROM temp_data WHERE expires_at < NOW()
+RETURNING *;
+```
+
+<Callout type="tip">
+`RETURNING` 절은 PostgreSQL의 강력한 기능입니다. INSERT/UPDATE/DELETE 후 별도의 SELECT 없이 바로 결과를 받을 수 있어 네트워크 왕복을 줄입니다.
+</Callout>
+
+## 다음 단계
+
+실전 SQL 패턴을 배웠습니다. 레퍼런스 섹션에서 데이터 타입, 내장 함수, 오류 코드를 확인하세요.

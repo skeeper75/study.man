@@ -1,0 +1,116 @@
+---
+title: "오류 처리"
+description: "PostgreSQL의 일반적인 오류, 원인, 해결 방법을 배웁니다."
+difficulty: "intermediate"
+tags: ["postgresql", "errors", "debugging", "troubleshooting"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["reference/errors", "intermediate/transactions"]
+---
+
+import { Callout } from '@/components/content/Callout'
+
+# 오류 처리
+
+실무에서 자주 마주치는 PostgreSQL 오류와 해결 방법을 정리합니다.
+
+## 제약 조건 위반 오류
+
+### ERROR 23505: unique_violation
+
+```sql
+-- 원인: UNIQUE 제약 조건 위반
+INSERT INTO users (email) VALUES ('existing@example.com');
+-- ERROR: duplicate key value violates unique constraint "users_email_key"
+
+-- 해결: UPSERT 패턴
+INSERT INTO users (email, name) VALUES ('existing@example.com', '김철수')
+ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+```
+
+### ERROR 23503: foreign_key_violation
+
+```sql
+-- 원인: 존재하지 않는 외래 키 참조
+INSERT INTO orders (customer_id) VALUES (99999);
+
+-- 해결: 참조 무결성 확인
+SELECT EXISTS (SELECT 1 FROM customers WHERE id = 99999);
+```
+
+### ERROR 23502: not_null_violation
+
+```sql
+-- 원인: NOT NULL 컬럼에 NULL 삽입
+INSERT INTO users (name) VALUES (NULL);
+
+-- 해결: DEFAULT 값 설정 또는 값 제공
+ALTER TABLE users ALTER COLUMN name SET DEFAULT 'Anonymous';
+```
+
+## 타입 오류
+
+### ERROR 42804: datatype_mismatch
+
+```sql
+-- 원인: 타입 불일치
+SELECT * FROM users WHERE id = 'abc';
+
+-- 해결: 올바른 타입으로 캐스팅
+SELECT * FROM users WHERE id = '123'::INTEGER;
+```
+
+## 잠금 관련 오류
+
+### ERROR 55P03: lock_not_available
+
+```sql
+-- 잠금 대기 시간 설정
+SET lock_timeout = '5s';
+
+-- 현재 잠금 확인
+SELECT pid, state, query, wait_event_type
+FROM pg_stat_activity
+WHERE state != 'idle';
+```
+
+<Callout type="warning">
+데드락이 발생하면 PostgreSQL은 자동으로 한쪽 트랜잭션을 취소합니다. 테이블 접근 순서를 일관되게 유지하면 데드락을 예방할 수 있습니다.
+</Callout>
+
+## 연결 관련 오류
+
+### too many connections
+
+```sql
+-- 현재 연결 수 확인
+SELECT count(*) FROM pg_stat_activity;
+
+-- 최대 연결 수 확인
+SHOW max_connections;
+
+-- 유휴 연결 강제 종료
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE state = 'idle'
+AND query_start < NOW() - INTERVAL '10 minutes';
+```
+
+## 디버깅 도구
+
+```sql
+-- 쿼리 실행 통계
+SELECT * FROM pg_stat_user_tables WHERE relname = 'users';
+
+-- 현재 실행 중인 쿼리
+SELECT pid, state, query, NOW() - query_start AS duration
+FROM pg_stat_activity
+WHERE state = 'active';
+
+-- 테이블 크기
+SELECT pg_size_pretty(pg_total_relation_size('users'));
+```
+
+## 다음 단계
+
+오류 처리를 배웠습니다. 다음 레슨에서는 실무에서 자주 사용하는 SQL 패턴을 다룹니다.

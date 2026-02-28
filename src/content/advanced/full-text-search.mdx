@@ -1,0 +1,109 @@
+---
+title: "전문 검색"
+description: "tsvector, tsquery, GIN 인덱스를 사용한 전문 검색(Full-Text Search)을 배웁니다."
+difficulty: "advanced"
+tags: ["postgresql", "full-text-search", "tsvector", "gin"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["advanced/indexes", "advanced/json"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+
+# 전문 검색 (Full-Text Search)
+
+PostgreSQL은 별도의 검색 엔진 없이 강력한 전문 검색 기능을 제공합니다.
+
+## 핵심 개념
+
+- **tsvector**: 검색 대상 문서를 토큰으로 분해한 형태
+- **tsquery**: 검색 조건을 표현한 형태
+- **@@**: tsvector와 tsquery의 매칭 연산자
+
+```sql
+-- tsvector 생성
+SELECT to_tsvector('english', 'The quick brown fox jumps over the lazy dog');
+
+-- tsquery 생성
+SELECT to_tsquery('english', 'quick & fox');
+
+-- 매칭 확인
+SELECT to_tsvector('english', 'The quick brown fox')
+    @@ to_tsquery('english', 'quick & fox');
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE articles (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  search_vector TSVECTOR
+);
+
+INSERT INTO articles (title, body) VALUES
+  ('PostgreSQL Indexing', 'B-tree indexes are the default index type in PostgreSQL'),
+  ('Full Text Search', 'PostgreSQL provides built-in full text search capabilities'),
+  ('JSON in PostgreSQL', 'JSONB is a binary representation of JSON data');
+
+UPDATE articles SET search_vector =
+  to_tsvector('english', title || ' ' || body);
+
+SELECT title, ts_rank(search_vector, query) AS rank
+FROM articles, to_tsquery('english', 'postgresql & index') AS query
+WHERE search_vector @@ query
+ORDER BY rank DESC;`}
+  title="전문 검색 예제"
+/>
+
+## GIN 인덱스 생성
+
+```sql
+CREATE INDEX idx_articles_search ON articles USING GIN (search_vector);
+```
+
+## 자동 업데이트 트리거
+
+```sql
+CREATE FUNCTION update_search_vector() RETURNS TRIGGER AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('english', NEW.title || ' ' || NEW.body);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_search_vector
+  BEFORE INSERT OR UPDATE ON articles
+  FOR EACH ROW EXECUTE FUNCTION update_search_vector();
+```
+
+## 검색 연산자
+
+| 연산자 | 설명 | 예시 |
+|--------|------|------|
+| `&` | AND | `'cat & dog'` |
+| `\|` | OR | `'cat \| dog'` |
+| `!` | NOT | `'cat & !dog'` |
+| `<->` | 인접 | `'quick <-> fox'` |
+
+## 가중치 부여
+
+```sql
+SELECT
+  title,
+  ts_rank(
+    setweight(to_tsvector('english', title), 'A') ||
+    setweight(to_tsvector('english', body), 'B'),
+    to_tsquery('english', 'postgresql')
+  ) AS rank
+FROM articles
+ORDER BY rank DESC;
+```
+
+<Callout type="info">
+가중치는 A(높음), B, C, D(낮음) 4단계입니다. 제목에 A, 본문에 B 가중치를 부여하면 제목 매칭이 더 높은 점수를 받습니다.
+</Callout>
+
+## 다음 단계
+
+전문 검색을 배웠습니다. 다음 레슨에서는 테이블 파티셔닝을 배웁니다.

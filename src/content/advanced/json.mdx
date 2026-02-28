@@ -1,0 +1,118 @@
+---
+title: "JSONB"
+description: "PostgreSQL의 JSONB 데이터 타입, 연산자, 인덱싱을 배웁니다."
+difficulty: "advanced"
+tags: ["postgresql", "jsonb", "json", "nosql"]
+minVersion: 13
+lastUpdated: "2026-02-28"
+related: ["advanced/indexes", "reference/data-types"]
+---
+
+import { SQLPlayground } from '@/components/content/SQLPlayground'
+import { Callout } from '@/components/content/Callout'
+import { VersionBadge } from '@/components/content/VersionBadge'
+
+# JSONB
+
+PostgreSQL의 JSONB는 SQL과 NoSQL의 장점을 결합합니다.
+
+## JSON vs JSONB
+
+| | JSON | JSONB |
+|---|------|-------|
+| 저장 | 텍스트 그대로 | 바이너리 분해 |
+| 키 순서 | 보존 | 보존 안 됨 |
+| 중복 키 | 허용 | 마지막 값만 유지 |
+| 인덱싱 | 불가 | GIN 인덱스 가능 |
+| 성능 | 쓰기 빠름 | 읽기 빠름 |
+
+<Callout type="tip">
+대부분의 경우 **JSONB**를 사용하세요. JSON 텍스트 형태를 보존해야 할 특별한 이유가 없다면 JSONB가 항상 더 좋은 선택입니다.
+</Callout>
+
+## 기본 연산자
+
+```sql
+-- 키로 값 조회 (텍스트 반환)
+SELECT data->>'name' FROM users;
+
+-- 중첩 키 접근
+SELECT data->'address'->>'city' FROM users;
+
+-- 키 존재 확인
+SELECT * FROM users WHERE data ? 'phone';
+
+-- 포함 관계
+SELECT * FROM users WHERE data @> '{"role": "admin"}';
+```
+
+<SQLPlayground
+  defaultQuery={`CREATE TABLE events (
+  id SERIAL PRIMARY KEY,
+  type TEXT NOT NULL,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO events (type, data) VALUES
+  ('user.signup', '{"name": "김철수", "email": "kim@ex.com", "plan": "free"}'),
+  ('user.signup', '{"name": "이영희", "email": "lee@ex.com", "plan": "pro"}'),
+  ('order.created', '{"user_id": 1, "items": [{"name": "노트북", "price": 1200000}]}'),
+  ('user.upgrade', '{"user_id": 1, "from": "free", "to": "pro"}');
+
+SELECT type, data->>'name' AS name, data->>'plan' AS plan
+FROM events
+WHERE type = 'user.signup';`}
+  title="JSONB 기본 조회"
+/>
+
+## JSONB 수정
+
+```sql
+-- 키 추가/수정
+UPDATE users SET data = data || '{"verified": true}';
+
+-- 키 삭제
+UPDATE users SET data = data - 'temp_field';
+
+-- 중첩 키 수정
+UPDATE users SET data = jsonb_set(data, '{address,city}', '"서울"');
+```
+
+## JSONB 집계
+
+```sql
+-- 배열 요소 펼치기
+SELECT jsonb_array_elements(data->'items') AS item
+FROM events
+WHERE type = 'order.created';
+
+-- 키-값 쌍 펼치기
+SELECT key, value
+FROM events, jsonb_each(data)
+WHERE id = 1;
+```
+
+## GIN 인덱스
+
+```sql
+-- JSONB 전체에 GIN 인덱스
+CREATE INDEX idx_events_data ON events USING GIN (data);
+
+-- 특정 경로에 인덱스
+CREATE INDEX idx_events_type ON events USING GIN ((data->'type'));
+```
+
+## jsonb_path_query <VersionBadge version={14} />
+
+SQL/JSON Path를 사용한 고급 쿼리:
+
+```sql
+SELECT jsonb_path_query(data, '$.items[*].price')
+FROM events
+WHERE type = 'order.created';
+```
+
+## 다음 단계
+
+JSONB를 배웠습니다. 다음 레슨에서는 전문 검색(Full-Text Search)을 배웁니다.
